@@ -293,6 +293,7 @@ data:
   enable-gateway-api: "true"
   enable-gateway-api-secrets-sync: {{ .Values.gatewayAPI.secretsNamespace.sync | quote }}
   enable-gateway-api-proxy-protocol: {{ .Values.gatewayAPI.enableProxyProtocol | quote }}
+  enable-gateway-api-upstream-proxy-protocol: {{ .Values.gatewayAPI.enableUpstreamProxyProtocol | quote }}
   enable-gateway-api-app-protocol: {{ or .Values.gatewayAPI.enableAppProtocol .Values.gatewayAPI.enableAlpn | quote }}
   enable-gateway-api-alpn: {{ .Values.gatewayAPI.enableAlpn | quote }}
   gateway-api-xff-num-trusted-hops: {{ .Values.gatewayAPI.xffNumTrustedHops | quote }}
