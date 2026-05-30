@@ -40,6 +40,7 @@ var Cell = cell.Module(
 	cell.Config(gatewayApiConfig{
 		EnableGatewayAPISecretsSync:            true,
 		EnableGatewayAPIProxyProtocol:          false,
+		EnableGatewayAPIUpstreamProxyProtocol:  false,
 		EnableGatewayAPIAppProtocol:            false,
 		EnableGatewayAPIAlpn:                   false,
 		GatewayAPIServiceExternalTrafficPolicy: "Cluster",
@@ -70,6 +71,7 @@ var optionalGVKs = []schema.GroupVersionKind{
 type gatewayApiConfig struct {
 	EnableGatewayAPISecretsSync            bool
 	EnableGatewayAPIProxyProtocol          bool
+	EnableGatewayAPIUpstreamProxyProtocol  bool
 	EnableGatewayAPIAppProtocol            bool
 	EnableGatewayAPIAlpn                   bool
 	GatewayAPIServiceExternalTrafficPolicy string
@@ -83,6 +85,7 @@ type gatewayApiConfig struct {
 func (r gatewayApiConfig) Flags(flags *pflag.FlagSet) {
 	flags.Bool("enable-gateway-api-secrets-sync", r.EnableGatewayAPISecretsSync, "Enables fan-in TLS secrets sync from multiple namespaces to singular namespace (specified by gateway-api-secrets-namespace flag)")
 	flags.Bool("enable-gateway-api-proxy-protocol", r.EnableGatewayAPIProxyProtocol, "Enable proxy protocol for all GatewayAPI listeners. Note that _only_ Proxy protocol traffic will be accepted once this is enabled.")
+	flags.Bool("enable-gateway-api-upstream-proxy-protocol", r.EnableGatewayAPIUpstreamProxyProtocol, "Enable PROXY protocol v2 on upstream (backend) connections for all GatewayAPI clusters. When enabled, Envoy sends a PROXY protocol header to backend services, forwarding the real client IP.")
 	flags.Bool("enable-gateway-api-app-protocol", r.EnableGatewayAPIAppProtocol, "Enables Backend Protocol selection (GEP-1911) for Gateway API via appProtocol")
 	flags.Bool("enable-gateway-api-alpn", r.EnableGatewayAPIAlpn, "Enables exposing ALPN with HTTP2 and HTTP/1.1 support for Gateway API")
 	flags.Uint32("gateway-api-xff-num-trusted-hops", r.GatewayAPIXffNumTrustedHops, "The number of additional GatewayAPI proxy hops from the right side of the HTTP header to trust when determining the origin client's IP address.")
@@ -158,8 +161,9 @@ func initGatewayAPIController(params gatewayAPIParams) error {
 			StreamIdleTimeoutSeconds: params.OperatorConfig.ProxyStreamIdleTimeoutSeconds,
 		},
 		ClusterConfig: translation.ClusterConfig{
-			IdleTimeoutSeconds: params.OperatorConfig.ProxyIdleTimeoutSeconds,
-			UseAppProtocol:     params.GatewayApiConfig.EnableGatewayAPIAppProtocol,
+			IdleTimeoutSeconds:       params.OperatorConfig.ProxyIdleTimeoutSeconds,
+			UseAppProtocol:           params.GatewayApiConfig.EnableGatewayAPIAppProtocol,
+			UseUpstreamProxyProtocol: params.GatewayApiConfig.EnableGatewayAPIUpstreamProxyProtocol,
 		},
 		RouteConfig: translation.RouteConfig{
 			HostNameSuffixMatch: true,

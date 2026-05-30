@@ -52,6 +52,12 @@ type ListenerConfig struct {
 type ClusterConfig struct {
 	IdleTimeoutSeconds int  `json:"idle_timeout_seconds,omitempty"`
 	UseAppProtocol     bool `json:"use_app_protocol,omitempty"`
+	// UseUpstreamProxyProtocol enables PROXY protocol v2 on the upstream (cluster)
+	// transport socket so that the real client IP is forwarded to backend services.
+	// When enabled, Envoy wraps the upstream connection with a
+	// ProxyProtocolUpstreamTransport and sends the PROXY protocol header before
+	// the first data byte.
+	UseUpstreamProxyProtocol bool `json:"use_upstream_proxy_protocol,omitempty"`
 }
 
 type RouteConfig struct {

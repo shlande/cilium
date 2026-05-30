@@ -6,6 +6,7 @@ package translation
 import (
 	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
+	envoy_transport_sockets_proxy_protocol_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/transport_sockets/proxy_protocol/v3"
 	envoy_upstreams_http_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/upstreams/http/v3"
 	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/durationpb"
@@ -99,6 +100,42 @@ func withProtocol(protocolVersion HTTPVersionType) ClusterMutator {
 
 		cluster.TypedExtensionProtocolOptions = map[string]*anypb.Any{
 			httpProtocolOptionsType: toAny(options),
+		}
+		return cluster
+	}
+}
+
+// withUpstreamProxyProtocol wraps the cluster's upstream transport socket with
+// Envoy's ProxyProtocolUpstreamTransport so that PROXY protocol v2 headers are
+// sent to backend services, forwarding the real client IP.
+//
+// If the cluster has no existing TransportSocket, a raw_buffer inner socket is
+// used as the fallback (the default Envoy behavior for plain TCP).
+//
+// Note: this mutator is intentionally NOT applied to tcpClusterMutators()
+// (TLSPassthrough routes) because those routes forward raw TLS bytes and the
+// PROXY protocol header would corrupt the TLS handshake.
+func withUpstreamProxyProtocol() ClusterMutator {
+	return func(cluster *envoy_config_cluster_v3.Cluster) *envoy_config_cluster_v3.Cluster {
+		if cluster == nil {
+			return cluster
+		}
+		innerSocket := cluster.TransportSocket
+		if innerSocket == nil {
+			innerSocket = &envoy_config_core_v3.TransportSocket{
+				Name: rawBufferTransportSocketName,
+			}
+		}
+		cluster.TransportSocket = &envoy_config_core_v3.TransportSocket{
+			Name: proxyProtocolTransportSocketName,
+			ConfigType: &envoy_config_core_v3.TransportSocket_TypedConfig{
+				TypedConfig: toAny(&envoy_transport_sockets_proxy_protocol_v3.ProxyProtocolUpstreamTransport{
+					Config: &envoy_config_core_v3.ProxyProtocolConfig{
+						Version: envoy_config_core_v3.ProxyProtocolConfig_V2,
+					},
+					TransportSocket: innerSocket,
+				}),
+			},
 		}
 		return cluster
 	}

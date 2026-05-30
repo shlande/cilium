@@ -18,7 +18,9 @@ import (
 )
 
 const (
-	httpProtocolOptionsType = "envoy.extensions.upstreams.http.v3.HttpProtocolOptions"
+	httpProtocolOptionsType        = "envoy.extensions.upstreams.http.v3.HttpProtocolOptions"
+	rawBufferTransportSocketName   = "envoy.transport_sockets.raw_buffer"
+	proxyProtocolTransportSocketName = "envoy.transport_sockets.proxy_protocol"
 )
 
 type HTTPVersionType int
@@ -47,6 +49,9 @@ func (i *cecTranslator) clusterMutators(grpcService bool, appProtocol string) []
 			// When --use-app-protocol is used, envoy will set upstream protocol to HTTP/1.1
 			res = append(res, withProtocol(HTTPVersion1))
 		}
+	}
+	if i.Config.ClusterConfig.UseUpstreamProxyProtocol {
+		res = append(res, withUpstreamProxyProtocol())
 	}
 	return res
 }
