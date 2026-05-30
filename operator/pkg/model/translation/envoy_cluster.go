@@ -94,11 +94,11 @@ func (i *cecTranslator) desiredEnvoyCluster(m *model.Model) ([]ciliumv2.XDSResou
 				clusterName := getClusterName(ns, name, port)
 				clusterServiceName := getClusterServiceName(ns, name, port)
 				sortedClusterNames = append(sortedClusterNames, clusterName)
-				var mutators []ClusterMutator
-				if ppVersion := getUpstreamProxyProtocolVersion(m, ns, name, port); ppVersion != "" {
-					mutators = append(mutators, withUpstreamProxyProtocol(toProxyProtocolVersion(ppVersion)))
-				}
-				envoyClusters[clusterName], _ = i.tcpCluster(clusterName, clusterServiceName, mutators...)
+			var mutators []ClusterMutator
+			if ppVersion := getUpstreamProxyProtocolVersion(m, ns, name, port); ppVersion == "v1" || ppVersion == "v2" {
+				mutators = append(mutators, withUpstreamProxyProtocol(toProxyProtocolVersion(ppVersion)))
+			}
+			envoyClusters[clusterName], _ = i.tcpCluster(clusterName, clusterServiceName, mutators...)
 			}
 		}
 	}
