@@ -25,13 +25,13 @@ const (
 
 // toProxyProtocolVersion converts a string version label ("v1" or "v2") to
 // the corresponding Envoy ProxyProtocolConfig_Version enum value.
-// Returns ProxyProtocolConfig_V2 as default for any unrecognised value
-// (callers must ensure only valid strings are passed via getUpstreamProxyProtocolVersion).
+// Callers must ensure only "v1" or "v2" are passed (enforced by
+// getUpstreamProxyProtocolVersion which rejects all other values).
 func toProxyProtocolVersion(version string) envoy_config_core_v3.ProxyProtocolConfig_Version {
-	if version == "v1" {
-		return envoy_config_core_v3.ProxyProtocolConfig_V1
+	if version == "v2" {
+		return envoy_config_core_v3.ProxyProtocolConfig_V2
 	}
-	return envoy_config_core_v3.ProxyProtocolConfig_V2
+	return envoy_config_core_v3.ProxyProtocolConfig_V1
 }
 
 type HTTPVersionType int
