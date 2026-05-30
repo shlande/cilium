@@ -9,7 +9,9 @@ import (
 	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	envoy_transport_sockets_proxy_protocol_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/transport_sockets/proxy_protocol/v3"
+	raw_bufferv3 "github.com/envoyproxy/go-control-plane/envoy/extensions/transport_sockets/raw_buffer/v3"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -129,7 +131,7 @@ func Test_withUpstreamProxyProtocol(t *testing.T) {
 		require.Equal(t, envoy_config_core_v3.ProxyProtocolConfig_V1, ppTransport.Config.Version)
 	})
 
-	t.Run("nil transport socket uses raw_buffer fallback", func(t *testing.T) {
+	t.Run("nil transport socket uses raw_buffer fallback with TypedConfig", func(t *testing.T) {
 		fn := withUpstreamProxyProtocol(envoy_config_core_v3.ProxyProtocolConfig_V2)
 		cluster := &envoy_config_cluster_v3.Cluster{}
 		cluster = fn(cluster)
@@ -137,6 +139,11 @@ func Test_withUpstreamProxyProtocol(t *testing.T) {
 		err := cluster.TransportSocket.GetTypedConfig().UnmarshalTo(ppTransport)
 		require.NoError(t, err)
 		require.Equal(t, rawBufferTransportSocketName, ppTransport.TransportSocket.Name)
+		require.NotNil(t, ppTransport.TransportSocket.ConfigType)
+		require.IsType(t, &envoy_config_core_v3.TransportSocket_TypedConfig{}, ppTransport.TransportSocket.ConfigType)
+		rawBuffer := &raw_bufferv3.RawBuffer{}
+		err = ppTransport.TransportSocket.GetTypedConfig().UnmarshalTo(rawBuffer)
+		require.NoError(t, err)
 	})
 }
 

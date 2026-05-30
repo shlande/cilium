@@ -7,6 +7,7 @@ import (
 	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	envoy_transport_sockets_proxy_protocol_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/transport_sockets/proxy_protocol/v3"
+	raw_bufferv3 "github.com/envoyproxy/go-control-plane/envoy/extensions/transport_sockets/raw_buffer/v3"
 	envoy_upstreams_http_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/upstreams/http/v3"
 	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/durationpb"
@@ -132,6 +133,9 @@ func withUpstreamProxyProtocol(version envoy_config_core_v3.ProxyProtocolConfig_
 		if innerSocket == nil {
 			innerSocket = &envoy_config_core_v3.TransportSocket{
 				Name: rawBufferTransportSocketName,
+				ConfigType: &envoy_config_core_v3.TransportSocket_TypedConfig{
+					TypedConfig: toAny(&raw_bufferv3.RawBuffer{}),
+				},
 			}
 		}
 		cluster.TransportSocket = &envoy_config_core_v3.TransportSocket{
