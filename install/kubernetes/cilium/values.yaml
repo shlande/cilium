@@ -1017,11 +1017,7 @@ gatewayAPI:
   enabled: false
   # -- Enable proxy protocol for all GatewayAPI listeners. Note that _only_ Proxy protocol traffic will be accepted once this is enabled.
   enableProxyProtocol: false
-  # enableUpstreamProxyProtocol enables PROXY protocol v2 on upstream (backend)
-  # connections for all GatewayAPI clusters. When enabled, Envoy sends a PROXY
-  # protocol header to backend services, forwarding the real client IP.
-  # Note: only Proxy protocol traffic will be accepted by backends once this is enabled.
-  enableUpstreamProxyProtocol: false
+
   # -- Enable Backend Protocol selection support (GEP-1911) for Gateway API via appProtocol.
   enableAppProtocol: false
   # -- Enable ALPN for all listeners configured with Gateway API. ALPN will attempt HTTP/2, then HTTP 1.1.

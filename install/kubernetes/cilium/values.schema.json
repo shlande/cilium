@@ -2508,9 +2508,7 @@
         "enableProxyProtocol": {
           "type": "boolean"
         },
-        "enableUpstreamProxyProtocol": {
-          "type": "boolean"
-        },
+
         "enabled": {
           "type": "boolean"
         },
