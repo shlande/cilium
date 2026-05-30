@@ -446,6 +446,15 @@ type Backend struct {
 	// AppProtocol contains the application protocol as per KEP-3726
 	// for the port of the Service.
 	AppProtocol *string `json:"app_protocol,omitempty"`
+	// UpstreamProxyProtocol specifies the PROXY protocol version to use when
+	// connecting to this backend. Valid values are "v1" (human-readable text
+	// format) and "v2" (binary format). An empty string means PROXY protocol
+	// is disabled for this backend.
+	//
+	// This field is populated from the Service label
+	// "service.cilium.io/proxy-protocol" and is only acted upon for
+	// TLSPassthrough routes.
+	UpstreamProxyProtocol string `json:"upstream_proxy_protocol,omitempty"`
 
 	// Weight specifies the percentage of traffic to send to this backend.
 	// This is computed as weight/(sum of all weights in backends) * 100.

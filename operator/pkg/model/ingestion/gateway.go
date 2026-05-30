@@ -718,11 +718,19 @@ func backendRefToModelBackend(svc corev1.Service, be gatewayv1.BackendObjectRefe
 		}
 	}
 
+	// Read the proxy protocol version label. Only "v1" and "v2" are valid;
+	// any other value (including absent) is treated as disabled ("").
+	ppVersion := svc.Labels["service.cilium.io/proxy-protocol"]
+	if ppVersion != "v1" && ppVersion != "v2" {
+		ppVersion = ""
+	}
+
 	return model.Backend{
-		Name:        string(be.Name),
-		Namespace:   ns,
-		Port:        port,
-		AppProtocol: appProtocol,
+		Name:                  string(be.Name),
+		Namespace:             ns,
+		Port:                  port,
+		AppProtocol:           appProtocol,
+		UpstreamProxyProtocol: ppVersion,
 	}
 }
 
