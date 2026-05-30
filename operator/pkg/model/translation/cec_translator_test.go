@@ -702,6 +702,65 @@ func domainsHelper(domain string) []string {
 	return []string{domain, fmt.Sprintf("%s:*", domain)}
 }
 
+func Test_getUpstreamProxyProtocolVersion(t *testing.T) {
+	backendV2 := model.Backend{
+		Name: "my-svc", Namespace: "default",
+		Port:                  &model.BackendPort{Port: 8443},
+		UpstreamProxyProtocol: "v2",
+	}
+	backendV1 := model.Backend{
+		Name: "my-svc", Namespace: "default",
+		Port:                  &model.BackendPort{Port: 8443},
+		UpstreamProxyProtocol: "v1",
+	}
+	backendNoLabel := model.Backend{
+		Name: "my-svc", Namespace: "default",
+		Port: &model.BackendPort{Port: 8443},
+	}
+
+	m := &model.Model{
+		TLSPassthrough: []model.TLSPassthroughListener{{
+			Routes: []model.TLSPassthroughRoute{{Backends: []model.Backend{backendV2}}},
+		}},
+		HTTP: []model.HTTPListener{{
+			Routes: []model.HTTPRoute{{Backends: []model.Backend{backendV2}}},
+		}},
+	}
+
+	t.Run("TLS backend with v2 label → v2", func(t *testing.T) {
+		require.Equal(t, "v2", getUpstreamProxyProtocolVersion(m, "default", "my-svc", "8443"))
+	})
+
+	t.Run("HTTP backend with v2 label → empty (not searched)", func(t *testing.T) {
+		mHTTPOnly := &model.Model{
+			HTTP: []model.HTTPListener{{Routes: []model.HTTPRoute{{Backends: []model.Backend{backendV2}}}}},
+		}
+		require.Equal(t, "", getUpstreamProxyProtocolVersion(mHTTPOnly, "default", "my-svc", "8443"))
+	})
+
+	t.Run("TLS backend with v1 label → v1", func(t *testing.T) {
+		mV1 := &model.Model{
+			TLSPassthrough: []model.TLSPassthroughListener{{
+				Routes: []model.TLSPassthroughRoute{{Backends: []model.Backend{backendV1}}},
+			}},
+		}
+		require.Equal(t, "v1", getUpstreamProxyProtocolVersion(mV1, "default", "my-svc", "8443"))
+	})
+
+	t.Run("TLS backend without label → empty", func(t *testing.T) {
+		mNoLabel := &model.Model{
+			TLSPassthrough: []model.TLSPassthroughListener{{
+				Routes: []model.TLSPassthroughRoute{{Backends: []model.Backend{backendNoLabel}}},
+			}},
+		}
+		require.Equal(t, "", getUpstreamProxyProtocolVersion(mNoLabel, "default", "my-svc", "8443"))
+	})
+
+	t.Run("non-existent backend → empty", func(t *testing.T) {
+		require.Equal(t, "", getUpstreamProxyProtocolVersion(m, "default", "other-svc", "8443"))
+	})
+}
+
 func TestSharedIngressTranslator_getResources(t *testing.T) {
 	type args struct {
 		m *model.Model
