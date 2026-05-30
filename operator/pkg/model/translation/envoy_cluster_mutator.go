@@ -106,16 +106,24 @@ func withProtocol(protocolVersion HTTPVersionType) ClusterMutator {
 }
 
 // withUpstreamProxyProtocol wraps the cluster's upstream transport socket with
-// Envoy's ProxyProtocolUpstreamTransport so that PROXY protocol v2 headers are
+// Envoy's ProxyProtocolUpstreamTransport so that PROXY protocol headers are
 // sent to backend services, forwarding the real client IP.
+//
+// The version parameter controls which PROXY protocol format is used:
+//   - envoy_config_core_v3.ProxyProtocolConfig_V1: human-readable text format
+//   - envoy_config_core_v3.ProxyProtocolConfig_V2: binary format (recommended)
 //
 // If the cluster has no existing TransportSocket, a raw_buffer inner socket is
 // used as the fallback (the default Envoy behavior for plain TCP).
 //
-// Note: this mutator is intentionally NOT applied to tcpClusterMutators()
-// (TLSPassthrough routes) because those routes forward raw TLS bytes and the
-// PROXY protocol header would corrupt the TLS handshake.
-func withUpstreamProxyProtocol() ClusterMutator {
+// This mutator is applied to TLSPassthrough clusters when the backend Service
+// has the label "service.cilium.io/proxy-protocol: v1" or "v2". In this case,
+// Envoy sends the PROXY header before the raw TCP bytes (which are a TLS
+// ClientHello). This is valid for backends configured with accept-proxy + ssl
+// (e.g., HAProxy "bind *:443 ssl accept-proxy", nginx "listen 443 ssl proxy_protocol").
+//
+// This mutator is NOT applied to HTTP/HTTPS clusters (clusterMutators).
+func withUpstreamProxyProtocol(version envoy_config_core_v3.ProxyProtocolConfig_Version) ClusterMutator {
 	return func(cluster *envoy_config_cluster_v3.Cluster) *envoy_config_cluster_v3.Cluster {
 		if cluster == nil {
 			return cluster
@@ -131,7 +139,7 @@ func withUpstreamProxyProtocol() ClusterMutator {
 			ConfigType: &envoy_config_core_v3.TransportSocket_TypedConfig{
 				TypedConfig: toAny(&envoy_transport_sockets_proxy_protocol_v3.ProxyProtocolUpstreamTransport{
 					Config: &envoy_config_core_v3.ProxyProtocolConfig{
-						Version: envoy_config_core_v3.ProxyProtocolConfig_V2,
+						Version: version,
 					},
 					TransportSocket: innerSocket,
 				}),

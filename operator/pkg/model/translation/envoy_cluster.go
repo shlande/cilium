@@ -23,6 +23,17 @@ const (
 	proxyProtocolTransportSocketName = "envoy.transport_sockets.proxy_protocol"
 )
 
+// toProxyProtocolVersion converts a string version label ("v1" or "v2") to
+// the corresponding Envoy ProxyProtocolConfig_Version enum value.
+// Returns ProxyProtocolConfig_V2 as default for any unrecognised value
+// (callers must ensure only valid strings are passed via getUpstreamProxyProtocolVersion).
+func toProxyProtocolVersion(version string) envoy_config_core_v3.ProxyProtocolConfig_Version {
+	if version == "v1" {
+		return envoy_config_core_v3.ProxyProtocolConfig_V1
+	}
+	return envoy_config_core_v3.ProxyProtocolConfig_V2
+}
+
 type HTTPVersionType int
 
 const (
@@ -49,9 +60,6 @@ func (i *cecTranslator) clusterMutators(grpcService bool, appProtocol string) []
 			// When --use-app-protocol is used, envoy will set upstream protocol to HTTP/1.1
 			res = append(res, withProtocol(HTTPVersion1))
 		}
-	}
-	if i.Config.ClusterConfig.UseUpstreamProxyProtocol {
-		res = append(res, withUpstreamProxyProtocol())
 	}
 	return res
 }
@@ -86,7 +94,11 @@ func (i *cecTranslator) desiredEnvoyCluster(m *model.Model) ([]ciliumv2.XDSResou
 				clusterName := getClusterName(ns, name, port)
 				clusterServiceName := getClusterServiceName(ns, name, port)
 				sortedClusterNames = append(sortedClusterNames, clusterName)
-				envoyClusters[clusterName], _ = i.tcpCluster(clusterName, clusterServiceName)
+				var mutators []ClusterMutator
+				if ppVersion := getUpstreamProxyProtocolVersion(m, ns, name, port); ppVersion != "" {
+					mutators = append(mutators, withUpstreamProxyProtocol(toProxyProtocolVersion(ppVersion)))
+				}
+				envoyClusters[clusterName], _ = i.tcpCluster(clusterName, clusterServiceName, mutators...)
 			}
 		}
 	}
