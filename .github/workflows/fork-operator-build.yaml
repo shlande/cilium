@@ -1,0 +1,137 @@
+name: Fork Operator Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Image tag (e.g. latest, v1.18.10-fork1)'
+        required: true
+        default: 'latest'
+      variant:
+        description: 'Operator variant to build'
+        required: true
+        type: choice
+        options:
+          - all
+          - operator-generic
+          - operator-aws
+          - operator-azure
+          - operator-alibabacloud
+  push:
+    tags:
+      - 'operator/v*'
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  operator-build:
+    timeout-minutes: 60
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: operator-generic
+            dockerfile: ./images/operator/Dockerfile
+            make-target: build-container-operator-generic
+          - name: operator-aws
+            dockerfile: ./images/operator/Dockerfile
+            make-target: build-container-operator-aws
+          - name: operator-azure
+            dockerfile: ./images/operator/Dockerfile
+            make-target: build-container-operator-azure
+          - name: operator-alibabacloud
+            dockerfile: ./images/operator/Dockerfile
+            make-target: build-container-operator-alibabacloud
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Set environment variables
+        run: |
+          echo "GITHUB_REGISTRY=ghcr.io" >> $GITHUB_ENV
+          echo "IMAGE_OWNER=${{ github.repository_owner }}" >> $GITHUB_ENV
+
+      - name: Determine image tag
+        id: tag
+        run: |
+          if [[ "${{ github.event_name }}" == "push" ]]; then
+            # Push with tag operator/v* → extract version
+            tag="${GITHUB_REF##*/}"
+          else
+            # workflow_dispatch → use input
+            tag="${{ github.event.inputs.tag }}"
+          fi
+          full_tag=${{ env.GITHUB_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ matrix.name }}:${tag}
+          echo "tag=${tag}" >> $GITHUB_OUTPUT
+          echo "full_tag=${full_tag}" >> $GITHUB_OUTPUT
+
+      - name: Filter variant (workflow_dispatch)
+        id: filter
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        run: |
+          variant="${{ github.event.inputs.variant }}"
+          if [[ "$variant" == "all" ]] || [[ "$variant" == "${{ matrix.name }}" ]]; then
+            echo "build=true" >> $GITHUB_OUTPUT
+          else
+            echo "build=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4.1.0
+        with:
+          registry: ${{ env.GITHUB_REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push ${{ matrix.name }}
+        if: ${{ github.event_name == 'push' || steps.filter.outputs.build != 'false' }}
+        uses: docker/build-push-action@bcafcacb16a39f128d818304e6c9c0c18556b85f # v7.1.0
+        id: docker_build
+        with:
+          provenance: false
+          context: .
+          file: ${{ matrix.dockerfile }}
+          push: true
+          platforms: linux/amd64
+          tags: ${{ steps.tag.outputs.full_tag }}
+          target: release
+          build-args: |
+            OPERATOR_VARIANT=${{ matrix.name }}
+
+      - name: Output image digest
+        if: ${{ github.event_name == 'push' || steps.filter.outputs.build != 'false' }}
+        run: |
+          echo "### ${{ matrix.name }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "\`${{ steps.tag.outputs.full_tag }}@${{ steps.docker_build.outputs.digest }}\`" >> $GITHUB_STEP_SUMMARY
+
+  summary:
+    needs: operator-build
+    if: ${{ always() }}
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Build summary
+        run: |
+          echo "## Operator Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Variant | Tag |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
+          echo "| operator-generic | \`ghcr.io/${{ github.repository_owner }}/operator-generic:${{ github.event.inputs.tag || github.ref_name }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| operator-aws | \`ghcr.io/${{ github.repository_owner }}/operator-aws:${{ github.event.inputs.tag || github.ref_name }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| operator-azure | \`ghcr.io/${{ github.repository_owner }}/operator-azure:${{ github.event.inputs.tag || github.ref_name }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| operator-alibabacloud | \`ghcr.io/${{ github.repository_owner }}/operator-alibabacloud:${{ github.event.inputs.tag || github.ref_name }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Browse: https://github.com/${{ github.repository }}/pkgs/container/operator-generic" >> $GITHUB_STEP_SUMMARY
