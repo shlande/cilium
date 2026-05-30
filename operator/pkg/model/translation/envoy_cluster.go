@@ -18,8 +18,8 @@ import (
 )
 
 const (
-	httpProtocolOptionsType        = "envoy.extensions.upstreams.http.v3.HttpProtocolOptions"
-	rawBufferTransportSocketName   = "envoy.transport_sockets.raw_buffer"
+	httpProtocolOptionsType          = "envoy.extensions.upstreams.http.v3.HttpProtocolOptions"
+	rawBufferTransportSocketName     = "envoy.transport_sockets.raw_buffer"
 	proxyProtocolTransportSocketName = "envoy.transport_sockets.proxy_protocol"
 )
 
